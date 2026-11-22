@@ -1,0 +1,6 @@
+{
+  "name": "hospital-queue-ui-tests",
+  "private": true,
+  "scripts": { "test": "node --test suggestion-reset.test.js" },
+  "devDependencies": { "jsdom": "^31.0.1" }
+}

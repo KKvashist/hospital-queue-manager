@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hospital Queue Manager</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<aside class="sidebar">
+  <div class="brand"><span class="cross">+</span> MediQueue</div>
+  <nav id="nav">
+    <button data-view="dashboard" class="active">Dashboard</button>
+    <button data-view="patients">Patient Registration</button>
+    <button data-view="doctors">Doctor Management</button>
+    <button data-view="appointments">Appointment Management</button>
+    <button data-view="queue">Emergency Queue</button>
+    <button data-view="workload">Doctor Workload</button>
+    <button data-view="history">Consultation History</button>
+  </nav>
+</aside>
+
+<main>
+  <div id="toast" class="toast" hidden></div>
+
+  <!-- 1. DASHBOARD -->
+  <section id="view-dashboard" class="view">
+    <div class="page-head"><h1>Dashboard</h1><span id="updated" class="muted"></span></div>
+    <div class="cards" id="statCards"></div>
+    <div class="dash-grid">
+      <div class="panel">
+        <h2>Priority breakdown</h2>
+        <div class="donut-wrap">
+          <div id="donut" class="donut"></div>
+          <ul id="donutLegend" class="legend"></ul>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>Highest-priority pending case</h2>
+        <div id="topCase" class="muted">Loading...</div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Concurrency simulation</h2>
+      <p class="muted">Runs registration-desk threads and doctor-worker threads at the same time against the real
+        services and database (needs enough available doctors and an empty waiting queue).</p>
+      <div class="row">
+        <label>Desks <input id="simDesks" type="number" min="1" max="20" value="5"></label>
+        <label>Doctors <input id="simDoctors" type="number" min="1" max="10" value="3"></label>
+        <label>Appointments <input id="simTotal" type="number" min="1" max="500" value="100"></label>
+        <button id="simRun" class="btn">Run simulation</button>
+      </div>
+      <div id="simResult" class="muted"></div>
+    </div>
+  </section>
+
+  <!-- 2. PATIENT REGISTRATION -->
+  <section id="view-patients" class="view" hidden>
+    <h1>Patient Registration</h1>
+    <div class="panel">
+      <form id="patientForm" class="grid">
+        <label>Full name <input name="name" required maxlength="100"></label>
+        <label>Age <input name="age" type="number" min="0" max="130" required></label>
+        <label>Gender
+          <select name="gender"><option>Female</option><option>Male</option><option>Other</option></select></label>
+        <label>Contact (phone or email) <input name="contact" required maxlength="100"></label>
+        <label class="wide">Symptoms <textarea name="symptoms" rows="2" required maxlength="500"></textarea></label>
+        <button class="btn" type="submit">Register patient</button>
+      </form>
+    </div>
+    <div class="panel">
+      <div class="row"><input id="patientSearch" placeholder="Search by ID, name, contact or symptoms">
+        <button id="patientSearchBtn" class="btn secondary">Search</button></div>
+      <div class="table-wrap"><table id="patientTable"></table></div>
+    </div>
+  </section>
+
+  <!-- 3. DOCTOR MANAGEMENT -->
+  <section id="view-doctors" class="view" hidden>
+    <h1>Doctor Management</h1>
+    <div class="panel">
+      <form id="doctorForm" class="grid">
+        <label>Name <input name="name" required maxlength="100"></label>
+        <label>Specialization <input name="specialization" required maxlength="100"></label>
+        <label>Department <input name="department" required maxlength="100"></label>
+        <button class="btn" type="submit">Add doctor</button>
+      </form>
+    </div>
+    <div id="doctorGroups"></div>
+  </section>
+
+  <!-- 4. APPOINTMENT MANAGEMENT (nurse / doctor priority verification) -->
+  <section id="view-appointments" class="view" hidden>
+    <h1>Appointment Management</h1>
+    <div class="panel">
+      <h2>1. Select patient</h2>
+      <div class="row"><select id="apPatient"></select>
+        <button id="apSuggest" class="btn secondary">Get priority suggestion</button></div>
+      <div id="reviewBox" hidden>
+        <h2>2. Nurse / doctor verification</h2>
+        <div class="notice">The system only <b>suggests</b> a priority from keywords. It is not a diagnosis.
+          A nurse or doctor must confirm or change it before the appointment can be created.</div>
+        <p>Suggested priority: <span id="suggestBadge"></span> <span id="suggestReason" class="muted"></span></p>
+        <div class="row">
+          <label>Reviewed by (nurse/doctor name) <input id="apReviewer" maxlength="100"></label>
+          <label>Final priority
+            <select id="apFinal"><option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option></select></label>
+        </div>
+        <div class="row">
+          <button id="apConfirm" class="btn">Confirm suggested priority</button>
+          <button id="apOverride" class="btn warn">Change priority &amp; submit</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="row"><h2>All appointments</h2>
+        <select id="apFilter"><option value="">All statuses</option><option>WAITING</option>
+          <option>IN_PROGRESS</option><option>COMPLETED</option></select></div>
+      <div class="table-wrap"><table id="apTable"></table></div>
+    </div>
+  </section>
+
+  <!-- 5. EMERGENCY QUEUE -->
+  <section id="view-queue" class="view" hidden>
+    <h1>Emergency Queue</h1>
+    <div class="panel">
+      <div class="row"><label>Doctor <select id="qDoctor"></select></label>
+        <button id="callNext" class="btn">Call next patient</button></div>
+    </div>
+    <div class="panel"><h2>Waiting (highest priority first)</h2>
+      <div class="table-wrap"><table id="queueTable"></table></div></div>
+    <div class="panel"><h2>In consultation</h2>
+      <div class="table-wrap"><table id="progressTable"></table></div></div>
+  </section>
+
+  <!-- 6. DOCTOR WORKLOAD -->
+  <section id="view-workload" class="view" hidden>
+    <h1>Doctor Workload</h1>
+    <div class="panel"><div class="table-wrap"><table id="workloadTable"></table></div></div>
+  </section>
+
+  <!-- 7. CONSULTATION HISTORY -->
+  <section id="view-history" class="view" hidden>
+    <h1>Consultation History</h1>
+    <div class="panel">
+      <div class="row"><input id="historyPatient" type="number" placeholder="Filter by patient ID (optional)">
+        <button id="historyBtn" class="btn secondary">Apply</button></div>
+      <div class="table-wrap"><table id="historyTable"></table></div>
+    </div>
+  </section>
+</main>
+
+<dialog id="completeDialog">
+  <form method="dialog" id="completeForm">
+    <h2>Complete consultation</h2>
+    <p id="completeInfo" class="muted"></p>
+    <label>Diagnosis <input id="cDiagnosis" required maxlength="255"></label>
+    <label>Notes <textarea id="cNotes" rows="3" maxlength="500"></textarea></label>
+    <div class="row">
+      <button class="btn" id="cSave" type="button">Save &amp; complete</button>
+      <button class="btn secondary" value="cancel">Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="js/app.js"></script>
+</body>
+</html>
